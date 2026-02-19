@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fracture Immobilisation Trainer UI</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <style>
         :root {
             --bg-dark: #2c3e50;
@@ -425,7 +426,7 @@
 
         // --- THREE.JS 3D SETUP ---
         let camera, scene, renderer;
-        let distalGroup; // The mobile part (Hand + Distal Radius)
+        let distalGroup; // The kinematic pivot group
 
         function init3D() {
             const container = document.getElementById('scene-container');
@@ -447,46 +448,31 @@
             const dirLight = new THREE.DirectionalLight(0xffffff, 1);
             dirLight.position.set(5, 10, 7);
             scene.add(dirLight);
-            scene.add(new THREE.AmbientLight(0x404040));
-
-            // 4. Geometry Materials
-            const boneMat = new THREE.MeshLambertMaterial({ color: 0xecf0f1 });
-            const fractureMat = new THREE.MeshLambertMaterial({ color: 0xe74c3c }); 
-
-            // --- STATIC BONES ---
-            
-            // Ulna (Bottom Bone)
-            const ulnaGeo = new THREE.CylinderGeometry(0.35, 0.4, 7, 32);
-            const ulna = new THREE.Mesh(ulnaGeo, boneMat);
-            ulna.rotation.z = Math.PI / 2;
-            ulna.position.set(0, -0.6, 0);
-            scene.add(ulna);
-
-            // Proximal Radius (Top Bone - Fixed Part)
-            const proxRadGeo = new THREE.CylinderGeometry(0.5, 0.5, 3.5, 32);
-            const proxRad = new THREE.Mesh(proxRadGeo, boneMat);
-            proxRad.rotation.z = Math.PI / 2;
-            proxRad.position.set(-1.8, 0.5, 0);
-            scene.add(proxRad);
+            scene.add(new THREE.AmbientLight(0x606060));
 
             // --- MOBILE GROUP (Fracture Site Pivot) ---
+            // We keep this group so your haptics/sensor logic still has a target to rotate
             distalGroup = new THREE.Group();
-            distalGroup.position.set(0, 0.5, 0); // Pivot point at x=0 (Fracture line)
-
-            // Distal Radius Fragment (The broken piece)
-            const distRadGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.5, 32);
-            const distRad = new THREE.Mesh(distRadGeo, fractureMat); // Red
-            distRad.rotation.z = Math.PI / 2;
-            distRad.position.set(0.75, 0, 0); // Offset relative to pivot
-            distalGroup.add(distRad);
-
-            // Hand (Box shape)
-            const handGeo = new THREE.BoxGeometry(1.5, 0.8, 2.5);
-            const hand = new THREE.Mesh(handGeo, boneMat);
-            hand.position.set(2.2, 0, 0); // Attached to end of radius
-            distalGroup.add(hand);
-
+            distalGroup.position.set(0, 0, 0); // Center pivot point
             scene.add(distalGroup);
+
+            // --- LOAD REALISTIC SKELETON MODEL ---
+            const loader = new THREE.GLTFLoader();
+            
+            // REPLACE 'your_exported_model.glb' with the exact name of your file
+            loader.load('your_exported_model.glb', function(gltf) {
+                const skeletonModel = gltf.scene;
+                
+                // You may need to tweak these scale and position values depending on how large your export was
+                skeletonModel.scale.set(1, 1, 1); 
+                skeletonModel.position.set(0, 0, 0);
+
+                // By default, this assigns the entire arm model to the rotating group.
+                distalGroup.add(skeletonModel);
+
+            }, undefined, function(error) {
+                console.error('Error loading GLB model:', error);
+            });
 
             // Resize handling
             window.addEventListener('resize', onWindowResize, false);
