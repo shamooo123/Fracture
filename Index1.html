@@ -1,439 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fracture Immobilisation Trainer UI</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <style>
-        :root {
-            --bg-dark: #2c3e50;
-            --bg-panel: #34495e;
-            --text-light: #ecf0f1;
-            --accent-blue: #3498db;
-            --status-green: #2ecc71;
-            --status-amber: #f1c40f;
-            --status-red: #e74c3c;
-            --bone-color: #ecf0f1;
-            --radius-highlight: #e8f6f3;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-dark);
-            color: var(--text-light);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Header */
-        header {
-            background-color: var(--accent-blue);
-            padding: 15px 20px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        /* Layout Containers */
-        .container {
-            display: flex;
-            flex: 1;
-            padding: 10px;
-            gap: 10px;
-            overflow: hidden;
-        }
-
-        /* Columns */
-        .col-left {
-            width: 20%;
-            background-color: white;
-            color: #333;
-            padding: 20px;
-            border-radius: 5px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .col-center {
-            width: 55%;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            position: relative; 
-        }
-
-        .tab-content {
-            display: none; 
-            flex-direction: column;
-            gap: 10px;
-            height: 100%;
-        }
-        
-        .tab-content.active {
-            display: flex;
-        }
-
-        .col-right {
-            width: 25%;
-            background-color: #bdc3c7; 
-            padding: 15px;
-            border-radius: 5px;
-            color: #2c3e50;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        /* Interactive Step List */
-        .step-list {
-            list-style: none;
-            padding: 0;
-            margin-top: 20px;
-        }
-
-        .step-item {
-            padding: 12px 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.1rem;
-            color: #7f8c8d;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background 0.2s, color 0.2s;
-        }
-
-        .step-item:hover {
-            background-color: #f0f2f5;
-        }
-
-        .step-item.active-step {
-            color: #2c3e50;
-            font-weight: bold;
-            background-color: #e3f2fd;
-            border-left: 4px solid var(--accent-blue);
-        }
-        
-        .step-item.completed {
-            color: var(--status-green);
-        }
-
-        /* Visualizer Area (3D Scene) */
-        .visualizer {
-            flex: 2;
-            background-color: #7f8c8d; 
-            border-radius: 5px;
-            position: relative;
-            overflow: hidden;
-            /* Flexbox ensures canvas fills this space */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Instruction Box Overlay */
-        .instruction-box {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: white;
-            color: #333;
-            padding: 15px;
-            border-radius: 5px;
-            width: 250px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            font-size: 0.9rem;
-            z-index: 10;
-        }
-
-        /* Placeholder Content */
-        .placeholder-content {
-            flex: 1;
-            background: white;
-            color: #333;
-            border-radius: 5px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 40px;
-        }
-        .placeholder-icon { font-size: 4rem; margin-bottom: 20px; color: var(--accent-blue); }
-
-        /* Safety Status Bar */
-        .safety-bar {
-            flex: 0 0 80px;
-            background-color: white;
-            border-radius: 5px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-        }
-
-        .status-indicator {
-            background-color: var(--status-green);
-            color: white;
-            padding: 15px 40px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            border-radius: 5px;
-            text-align: center;
-            min-width: 150px;
-            transition: background-color 0.3s;
-        }
-
-        .hall-sensor-viz {
-            width: 80px;
-            height: 80px;
-            border: 2px solid #333;
-            border-radius: 5px;
-            position: relative;
-            background: white;
-        }
-        
-        .hall-line {
-            width: 4px;
-            height: 30px;
-            background: #333;
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        .hall-top { top: 10px; }
-        .hall-bottom { bottom: 10px; transition: transform 0.2s; transform-origin: top center; }
-
-        /* Sensor Bars */
-        .sensor-group { margin-bottom: 10px; }
-        .sensor-label { font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between; }
-        .bar-container { height: 25px; background-color: #ecf0f1; border: 1px solid #7f8c8d; border-radius: 15px; overflow: hidden; position: relative; }
-        .bar-fill { height: 100%; background-color: #7f8c8d; width: 0%; transition: width 0.5s ease, background-color 0.3s; }
-        .threshold-line { position: absolute; left: 70%; top: 0; bottom: 0; border-left: 2px dotted #333; z-index: 2; }
-
-        /* Controls */
-        .demo-controls { position: absolute; bottom: 10px; right: 10px; display: flex; gap: 10px; }
-        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1rem; }
-        .btn-finish { background: var(--bg-dark); color: white; }
-        .btn-force { background: #e67e22; color: white; }
-
-        /* REPORT SCREEN */
-        #report-view { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 40px; background: #f0f2f5; color: #333; height: 100%; }
-        .report-card { width: 800px; background: #7f8c8d; border: 4px solid #000; display: flex; flex-direction: column; }
-        .report-section { padding: 20px; border-bottom: 4px solid #000; }
-        .report-section:last-child { border-bottom: none; }
-        .score-header { font-size: 1.5rem; font-weight: bold; }
-        .score-big { font-size: 2.5rem; margin-top: 10px; }
-        .checklist-item { display: flex; align-items: center; font-size: 1.2rem; margin-bottom: 10px; }
-        .icon-check { color: black; font-weight: bold; margin-right: 10px; }
-        .icon-cross { color: black; font-weight: bold; margin-right: 10px; }
-        .timeline-log { font-family: monospace; background: rgba(0,0,0,0.1); padding: 10px; max-height: 100px; overflow-y: auto; }
-        .log-entry { margin-bottom: 5px; }
-        .log-amber { color: #d35400; font-weight: bold; }
-        .log-red { color: #c0392b; font-weight: bold; }
-
-    </style>
-</head>
-<body>
-
-    <div id="guided-view" style="display: flex; flex-direction: column; height: 100%;">
-        <header>
-            <span>Interactive Trainer: Guided Mode</span>
-            <span style="font-size: 1rem; font-weight: normal;">Session: Student_01</span>
-        </header>
-
-        <div class="container">
-            <div class="col-left">
-                <h3>Workflow</h3>
-                <ul class="step-list">
-                    <li class="step-item" onclick="openTab('prep', this)">1. Preparation</li>
-                    <li class="step-item" onclick="openTab('localise', this)">2. Localise Fracture</li>
-                    <li class="step-item active-step" onclick="openTab('align', this)">3. Align Bone</li>
-                    <li class="step-item" onclick="openTab('immobilise', this)">4. Immobilise</li>
-                    <li class="step-item" onclick="openTab('check', this)">5. Final Check</li>
-                </ul>
-            </div>
-
-            <div class="col-center">
-                
-                <div id="tab-prep" class="tab-content">
-                    <div class="placeholder-content">
-                        <div class="placeholder-icon">📋</div>
-                        <h2>Preparation Stage</h2>
-                        <p>Verify patient identity and check for contraindications.</p>
-                        <ul style="text-align:left; display:inline-block;">
-                            <li><input type="checkbox" checked> Gather Stockinette & Padding</li>
-                            <li><input type="checkbox"> Check Water Temperature</li>
-                            <li><input type="checkbox"> Inspect Skin Condition</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div id="tab-localise" class="tab-content">
-                    <div class="placeholder-content">
-                        <div class="placeholder-icon">📍</div>
-                        <h2>Fracture Localisation</h2>
-                        <p>Use palpation to identify the fracture line on the distal radius.</p>
-                        <p style="color:#7f8c8d;">(Haptic feedback enabled for palpation)</p>
-                    </div>
-                </div>
-
-                <div id="tab-align" class="tab-content active">
-                    <div class="visualizer" id="scene-container">
-                        <div class="instruction-box">
-                            <strong>Instruction: Traction & Reduction</strong><br><br>
-                            Apply longitudinal traction to disimpact the fragments. Then flex the wrist to align the distal radius.
-                        </div>
-                    </div>
-
-                    <div class="safety-bar">
-                        <div class="hall-sensor-viz">
-                            <div class="hall-line hall-top"></div>
-                            <div class="hall-line hall-bottom" id="hall-indicator"></div>
-                        </div>
-                        
-                        <div style="text-align: center;">
-                            <div>Alignment Monitor</div>
-                            <div style="font-size:0.8rem; color:#7f8c8d;">Hall Sensor Data</div>
-                        </div>
-
-                        <div id="safety-status" class="status-indicator">SAFE</div>
-                    </div>
-                </div>
-
-                <div id="tab-immobilise" class="tab-content">
-                    <div class="placeholder-content">
-                        <div class="placeholder-icon">🤕</div>
-                        <h2>Immobilisation</h2>
-                        <p>Apply padding and fiberglass cast.</p>
-                        <p><strong>Monitor Pressure Sensors:</strong> Ensure wrapping is not too tight.</p>
-                    </div>
-                </div>
-
-                 <div id="tab-check" class="tab-content">
-                    <div class="placeholder-content">
-                        <div class="placeholder-icon">✅</div>
-                        <h2>Final Assessment</h2>
-                        <p>Check capillary refill and cast comfort.</p>
-                        <button class="btn-finish" onclick="showReport()">Submit & Generate Report</button>
-                    </div>
-                </div>
-
-            </div>
-
-            <div class="col-right">
-                <h3>Live Sensors</h3>
-
-                <div class="sensor-group">
-                    <div class="sensor-label"><span>Temp</span> <span id="val-temp">36.5°C</span></div>
-                    <div class="bar-container">
-                        <div class="threshold-line"></div>
-                        <div class="bar-fill" id="bar-temp" style="width: 40%;"></div>
-                    </div>
-                </div>
-
-                <div class="sensor-group">
-                    <div class="sensor-label"><span>Pain Level</span> <span id="val-pain">11.5%</span></div>
-                    <div class="bar-container">
-                        <div class="threshold-line" style="left: 50%;"></div>
-                        <div class="bar-fill" id="bar-pain" style="width: 12%;"></div>
-                    </div>
-                </div>
-
-                <div class="sensor-group">
-                    <div class="sensor-label"><span>Pressure</span> <span id="val-pres">15%</span></div>
-                    <div class="bar-container">
-                        <div class="threshold-line" style="left: 80%;"></div>
-                        <div class="bar-fill" id="bar-pres" style="width: 15%;"></div>
-                    </div>
-                </div>
-                
-                <div style="margin-top: auto; font-size: 0.8rem; color: #555;">
-                    <p><strong>System Status:</strong></p>
-                    <p>● Haptics: ACTIVE</p>
-                    <p>● Pump: ACTIVE (60bpm)</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="demo-controls">
-            <button class="btn-force" onclick="toggleSimulateForce()">⚡ Apply Force</button>
-            <button class="btn-finish" onclick="showReport()">Finish Attempt</button>
-        </div>
-    </div>
-
-    <div id="report-view">
-        <header style="width: 100%; position: absolute; top:0; left:0;">
-            <span>Evaluation Report</span>
-            <button onclick="restart()" style="background:none; border:1px solid white; color:white; font-size:0.8rem;">New Session</button>
-        </header>
-
-        <div class="report-card">
-            <div class="report-section" style="background: #7f8c8d; color: #fff;">
-                <div class="score-header">Score + Pass/Fail</div>
-                <div class="score-big">Overall Score: 82%</div>
-                <div style="font-size: 1.5rem; font-weight: bold; margin-top: 5px;">Outcome: PASS</div>
-            </div>
-
-            <div class="report-section" style="background: #95a5a6;">
-                <div class="score-header" style="margin-bottom: 15px;">Checklist + Rating</div>
-                <div style="display: flex; gap: 40px;">
-                    <div>
-                        <div class="checklist-item"><span class="icon-check">✔</span> Edges padded</div>
-                        <div class="checklist-item"><span class="icon-check">✔</span> Alignment maintained</div>
-                    </div>
-                    <div>
-                        <div class="checklist-item"><span class="icon-cross">✘</span> Pressure appropriate</div>
-                        <div class="checklist-item" style="margin-top: 10px;"><strong>Rating: Borderline</strong></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="report-section" style="background: #7f8c8d;">
-                <div class="score-header" style="margin-bottom: 10px;">Timeline of issues</div>
-                <div class="timeline-log">
-                    <div class="log-entry log-amber">00:18 - Warning: Tension HIGH (Threshold 80%)</div>
-                    <div class="log-entry log-red">00:32 - Critical: Contact LOST</div>
-                    <div class="log-entry log-amber">00:45 - Warning: Alignment deviation > 5°</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // --- TAB SWITCHING LOGIC ---
-        function openTab(tabName, element) {
-            const tabs = document.querySelectorAll('.tab-content');
-            tabs.forEach(tab => tab.classList.remove('active'));
-            document.getElementById('tab-' + tabName).classList.add('active');
-
-            const listItems = document.querySelectorAll('.step-item');
-            listItems.forEach(item => item.classList.remove('active-step'));
-            element.classList.add('active-step');
-
-            // Resize 3D canvas when tab opens
-            if(tabName === 'align') {
-                setTimeout(onWindowResize, 100);
-            }
-        }
-
-        // --- THREE.JS 3D SETUP ---
+// --- THREE.JS 3D SETUP ---
         let camera, scene, renderer;
-        let distalGroup; // The kinematic pivot group
+        let skeletonModel; 
+        let wristBone = null; // We will store your Blender bone here
 
         function init3D() {
             const container = document.getElementById('scene-container');
 
             // 1. Scene & Camera
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x7f8c8d); // Matches CSS background
+            scene.background = new THREE.Color(0x7f8c8d); 
 
             camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 1000);
             camera.position.set(0, 5, 12); 
@@ -450,40 +25,39 @@
             scene.add(dirLight);
             scene.add(new THREE.AmbientLight(0x606060));
 
-            // --- MOBILE GROUP (Fracture Site Pivot) ---
-            // We keep this group so your haptics/sensor logic still has a target to rotate
-            distalGroup = new THREE.Group();
-            distalGroup.position.set(0, 0, 0); // Center pivot point
-            scene.add(distalGroup);
-
             // --- LOAD REALISTIC SKELETON MODEL ---
             const loader = new THREE.GLTFLoader();
             
-            // REPLACE 'your_exported_model.glb' with the exact name of your file
-            loader.load('your_exported_model.glb', function(gltf) {
-                const skeletonModel = gltf.scene;
-                
-                // You may need to tweak these scale and position values depending on how large your export was
+            loader.load('arm_broken.glb', function(gltf) {
+                skeletonModel = gltf.scene;
                 skeletonModel.scale.set(1, 1, 1); 
                 skeletonModel.position.set(0, 0, 0);
+                scene.add(skeletonModel);
 
-                // By default, this assigns the entire arm model to the rotating group.
-                distalGroup.add(skeletonModel);
+                // --- FIND YOUR INVISIBLE BONES ---
+                let bones = [];
+                skeletonModel.traverse(function(child) {
+                    if (child.isBone) {
+                        bones.push(child);
+                    }
+                });
+
+                // Since you built a 2-bone chain, bone[0] is the stable forearm, 
+                // and bone[1] is the hand that snaps!
+                if (bones.length > 1) {
+                    wristBone = bones[1]; 
+                }
 
             }, undefined, function(error) {
                 console.error('Error loading GLB model:', error);
             });
 
-            // Resize handling
             window.addEventListener('resize', onWindowResize, false);
-            
-            // Start Animation Loop for 3D
             animate();
         }
 
         function onWindowResize() {
             const container = document.getElementById('scene-container');
-            if(!container) return;
             camera.aspect = container.clientWidth / container.clientHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(container.clientWidth, container.clientHeight);
@@ -491,109 +65,43 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            if(renderer && scene && camera) {
-                renderer.render(scene, camera);
-            }
+            renderer.render(scene, camera);
         }
-
-        // Initialize 3D immediately
-        init3D();
-
 
         // --- SENSOR SIMULATION LOGIC ---
         let isSimulating = false;
         let intervalId;
 
         function updateSensors() {
-            // Random fluctuations
             let temp = 36.5 + (Math.random() * 0.5);
             let pain = 10 + (Math.random() * 5);
             let pres = 15 + (Math.random() * 5);
-            
-            // Base Angle for 3D model
             let angle = 0; 
 
             // Force Simulation
             if (isSimulating) {
                 pain += 50;
                 pres += 70;
-                angle = 25; // Significant bend
+                angle = 45; // Target bend angle in degrees
             } else {
-                angle = Math.sin(Date.now() * 0.002) * 2; // Gentle idle wobble
+                angle = 0; // Straight arm
             }
 
-            // Clamping
             if(pres > 100) pres = 100;
             if(pain > 100) pain = 100;
 
-            // DOM Updates
             document.getElementById('val-temp').innerText = temp.toFixed(1) + "°C";
-            document.getElementById('val-pain').innerText = pain.toFixed(1) + "%";
-            document.getElementById('val-pres').innerText = pres.toFixed(0) + "%";
+            // ... Keep your existing bar width updates here ...
 
-            // Bar Widths
-            document.getElementById('bar-temp').style.width = ((temp-30)/10 * 100) + "%"; 
-            document.getElementById('bar-pain').style.width = pain + "%";
-            document.getElementById('bar-pres').style.width = pres + "%";
-
-            // Safety Logic
-            const statusBox = document.getElementById('safety-status');
-            const barPres = document.getElementById('bar-pres');
-
-            if (pres > 80) {
-                statusBox.style.backgroundColor = 'var(--status-red)';
-                statusBox.innerText = "UNSAFE";
-                barPres.style.backgroundColor = '#e74c3c';
-            } else if (pres > 50) {
-                statusBox.style.backgroundColor = 'var(--status-amber)';
-                statusBox.innerText = "WARNING";
-                statusBox.style.color = '#333';
-                barPres.style.backgroundColor = '#f1c40f';
-            } else {
-                statusBox.style.backgroundColor = 'var(--status-green)';
-                statusBox.innerText = "SAFE";
-                statusBox.style.color = 'white';
-                barPres.style.backgroundColor = '#7f8c8d';
+            // --- BEND THE BONE DIRECTLY ---
+            if (wristBone) {
+                // Three.js uses radians, so we convert your angle degrees to radians
+                // Note: Depending on how the bone is rotated in Blender, you might need 
+                // to change '.z' to '.x' or '.y' to get it to bend the right direction!
+                wristBone.rotation.z = angle * (Math.PI / 180);
             }
 
-            // --- DRIVE 3D MODEL ROTATION ---
-            if(distalGroup) {
-                // Convert degrees to radians for Three.js
-                // Z-axis rotation simulates the wrist flexion/extension fracture
-                distalGroup.rotation.z = THREE.Math.degToRad(angle); 
-                distalGroup.rotation.y = THREE.Math.degToRad(angle * 0.2); // Slight twist
-            }
-
-            // --- DRIVE 2D HALL SENSOR VIZ ---
+            // 2D Hall Sensor Viz
             const hall = document.getElementById('hall-indicator');
-            if(hall) {
-                hall.style.transform = `translateX(-50%) rotate(${angle}deg)`;
-            }
+            if(hall) hall.style.transform = `translateX(-50%) rotate(${angle}deg)`;
         }
-
-        function toggleSimulateForce() {
-            isSimulating = !isSimulating;
-            const btn = document.querySelector('.btn-force');
-            btn.style.backgroundColor = isSimulating ? '#c0392b' : '#e67e22';
-            btn.innerText = isSimulating ? "Stop Force" : "⚡ Apply Force";
-        }
-
-        function showReport() {
-            document.getElementById('guided-view').style.display = 'none';
-            document.getElementById('report-view').style.display = 'flex';
-        }
-
-        function restart() {
-            document.getElementById('report-view').style.display = 'none';
-            document.getElementById('guided-view').style.display = 'flex';
-            isSimulating = false;
-            const alignTab = document.querySelectorAll('.step-item')[2];
-            openTab('align', alignTab);
-        }
-
-        // Start Loop
-        intervalId = setInterval(updateSensors, 50); // Fast update for smooth 3D motion
-
-    </script>
-</body>
-</html>
